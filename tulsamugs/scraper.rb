@@ -1,43 +1,24 @@
 require 'nokogiri'
 require 'open-uri'
+require 'json'
+require 'uuid'
+
+require_relative 'person'
+require_relative 'store'
 
 URL = "http://tulsamugs.com/"
 
-class Person
-  attr_accessor :name, :age, :city, :date, :charges
-
-  def initialize(person)
-    the_person = person.split(':')
-    first_chunk(the_person.first)
-    self.date = second_chunk(the_person[1])
-    self.charges = the_person.last.strip
-  end
-
-  def first_chunk(stuff)
-
-    self.city = stuff.split(',').last.gsub('ARRESTED', '').strip
-    data = []
-    stuff.split(',').first.each_line do |line|
-      data << line
-    end
-
-    self.name = data.first.strip
-    self.age = data.last.strip
-  end
-
-  def second_chunk(date)
-    return date.gsub('CHARGES','')
-  end
-end
-
-@first_run = true
-
+@first_run = false 
+@uuid = UUID.new
 def run_scrape(url="")
   @doc = Nokogiri::HTML(open("#{URL}/#{url}"))
 
   @people = []
   @doc.xpath("//div[@class='picture']").each do |person|
-    @people << person.content
+    if(person.content != "")
+      @people << person.content
+    end
+    puts person.content
   end
 
   @final_people = []
@@ -46,10 +27,10 @@ def run_scrape(url="")
   end
 
   @final_people.each do |p|
-    puts "#{p.name} (#{p.age}) - #{p.charges}"
+    couch_store(@uuid.generate, p.to_json)
   end
 
-  sleep 1
+  sleep 2
   if(@first_run)
     @first_run = false
     run_scrape(@doc.xpath("//div[@class='wrapper']//h2//font//a")[0].to_s.split('"')[1])
